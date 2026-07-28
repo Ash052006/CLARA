@@ -1,9 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from brain.conversation_manager import (
-    ConversationManager
-)
+from brain.conversation_manager import ConversationManager
+from voice.routes import router as voice_router
 
 app = FastAPI()
 
@@ -17,20 +16,14 @@ app.add_middleware(
 
 clara = ConversationManager()
 
+app.include_router(voice_router)
+
 
 @app.get("/")
 def home():
-
-    return {
-        "message": "CLARA is alive"
-    }
+    return {"message": "CLARA is alive"}
 
 
 @app.get("/chat/{message}")
 def chat(message: str):
-
-    response = clara.process_message(
-        message
-    )
-
-    return response
+    return clara.process_message(message)

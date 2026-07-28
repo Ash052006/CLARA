@@ -13,6 +13,11 @@ from planner.planner import Planner
 from tools.tool_router import ToolRouter
 from tools.executor import ToolExecutor
 
+from brain.intent_corrector import IntentCorrector
+
+from brain.routing.router import DecisionRouter
+from brain.routing.decision import Route
+from brain.reasoning.chat_manager import ChatManager
 
 class ConversationManager:
 
@@ -20,6 +25,12 @@ class ConversationManager:
 
         # Core AI systems
         self.llm = LLMManager()
+
+        # Decision routing
+        self.decision_router = DecisionRouter()
+
+        # Chat reasoning
+        self.chat_manager = ChatManager()
 
         self.extractor = EntityExtractor()
 
@@ -54,30 +65,57 @@ class ConversationManager:
         self.executor = ToolExecutor()
 
     def process_message(self, message):
-
+        print("=" * 80)
+        print("MESSAGE RECEIVED:")
+        print(repr(message))
+        print("=" * 80)
         # =========================================
         # Step 1: Understand message
         # =========================================
-        analysis = self.llm.understand(
-            message
+        analysis = self.llm.understand(message)
+        print("=" * 80)
+        print("INTENT:", analysis["intent"])
+        print("CONFIDENCE:", analysis["confidence"])
+        print("=" * 80)
+        print("\n========== BEFORE CORRECTOR ==========")
+        print(analysis)
+        print("======================================")
+
+        analysis = IntentCorrector.correct(
+            message,
+            analysis
         )
+        print("\n========== AFTER CORRECTOR ==========")
+        print(analysis)
+        print("=====================================")
+        route = self.decision_router.decide(analysis)
+
+        print("=" * 60)
+        print("CLARA ROUTER")
+        print("=" * 60)
+        print(f"Message : {message}")
+        print(f"Intent  : {analysis['intent']}")
+        print(f"Route   : {route.value}")
+        print("=" * 60)
+
         print("INTENT:", analysis)
 
         # =========================================
         # Step 2: Extract entities
         # =========================================
-        entities = self.extractor.extract(
-            message
-        )
+        entities = self.extractor.extract(message)
+
+        print("\n========== EXTRACTED ENTITIES ==========")
+        print(entities)
+        print("========================================")
 
         # =========================================
         # Step 3: Build new context
         # =========================================
         new_context = {
-
             "intent": analysis["intent"],
-
-            "entities": entities
+            "entities": entities,
+            "message": message
         }
 
         # =========================================
@@ -102,6 +140,9 @@ class ConversationManager:
             "current_context",
             merged_context
         )
+        print("\n========== MERGED CONTEXT ==========")
+        print(merged_context)
+        print("====================================")
 
         # =========================================
         # Step 7: Learn preferences
@@ -137,35 +178,97 @@ class ConversationManager:
         )
 
         # =========================================
-        # Step 9: Generate natural response
+        # CHAT ROUTE
         # =========================================
-        response = self.response_generator.generate(
-            merged_context,
-            self.preferences.get_all()
-        )
+        if route == Route.CHAT:
+
+            response = self.chat_manager.chat(message)
+
+            return {
+
+                "route": route.value,
+
+                "response": response,
+
+                "memory": self.memory.get_all(),
+
+                "preferences": self.preferences.get_all(),
+
+                "long_term": self.long_term.load()
+
+            }
 
         # =========================================
-        # Step 10: Create plan
+        # HYBRID ROUTE (Sprint 3)
         # =========================================
-        plan = self.planner.create_plan(
-            merged_context
-        )
+        elif route == Route.HYBRID:
+
+            return {
+
+                "route": route.value,
+
+                "response": "Hybrid execution will be implemented in Sprint 3.",
+
+                "memory": self.memory.get_all(),
+
+                "preferences": self.preferences.get_all(),
+
+                "long_term": self.long_term.load()
+
+            }
 
         # =========================================
-        # Step 11: Route tools
+        # TOOL ROUTE
         # =========================================
-        tools = self.router.route(
-            plan
-        )
+        elif route == Route.TOOL:
 
-        # =========================================
-        # Step 12: Execute tools
-        # =========================================
-        execution_results = self.executor.execute(
-            plan,
-            merged_context
-        )
+            response = self.response_generator.generate(
+                merged_context,
+                self.preferences.get_all()
+            )
 
+            plan = self.planner.create_plan(
+                merged_context
+            )
+
+            tools = self.router.route(
+                plan
+            )
+
+            execution_results = self.executor.execute(
+                plan,
+                merged_context
+            )
+
+            return {
+
+                "route": route.value,
+
+                "response": response,
+
+                "plan": plan,
+
+                "tools": tools,
+
+                "execution": execution_results,
+
+                "memory": self.memory.get_all(),
+
+                "preferences": self.preferences.get_all(),
+
+                "long_term": self.long_term.load()
+
+            }
+
+        else:
+
+            return {
+
+                "route": "unknown",
+
+                "response": "Unable to determine the request."
+
+            }
         # =========================================
         # Step 13: Final response
         # =========================================

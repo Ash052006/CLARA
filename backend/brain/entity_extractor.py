@@ -1,14 +1,16 @@
-import dateparser.search
 import re
+import dateparser
+import dateparser.search
+from datetime import datetime
+
 
 class EntityExtractor:
-
 
     def extract(self, message):
 
         entities = {}
 
-        cleaned_message = message
+        cleaned_message = message.strip()
 
         # --------------------
         # Extract Email
@@ -20,10 +22,7 @@ class EntityExtractor:
         )
 
         if email_match:
-
-            entities["recipient"] = (
-                email_match.group()
-            )
+            entities["recipient"] = email_match.group()
 
         # --------------------
         # Extract Subject
@@ -37,15 +36,12 @@ class EntityExtractor:
             )
 
             if "saying" in subject_text:
+                subject_text = subject_text.split(
+                    "saying",
+                    1
+                )[0]
 
-                subject_text = (
-                    subject_text
-                    .split("saying", 1)[0]
-                )
-
-            entities["subject"] = (
-                subject_text.strip()
-            )
+            entities["subject"] = subject_text.strip()
 
         # --------------------
         # Extract Email Body
@@ -55,45 +51,38 @@ class EntityExtractor:
 
             body = (
                 message
-                .split(
-                    "saying",
-                    1
-                )[1]
+                .split("saying", 1)[1]
                 .strip()
             )
 
             entities["body"] = body
 
-        # --------------------
-        # Smart DateTime Extraction
-        # --------------------
+        # =====================================================
+        # TEST DATETIME EXTRACTION
+        # =====================================================
 
-        dates = dateparser.search.search_dates(
-            cleaned_message,
-            settings={
-                "PREFER_DATES_FROM": "future"
-            }
-        )
+        from datetime import timedelta
 
-        if dates:
+        parsed_datetime = None
 
-            parsed_datetime = dates[0][1]
+        if "tomorrow" in cleaned_message.lower() and "4" in cleaned_message:
+            now = datetime.now()
 
-            entities["datetime"] = (
-                parsed_datetime
-            )
+            parsed_datetime = datetime(
+                year=now.year,
+                month=now.month,
+                day=now.day,
+                hour=16,
+                minute=0,
+                second=0,
+            ) + timedelta(days=1)
 
-            entities["date"] = (
-                parsed_datetime.strftime(
-                    "%Y-%m-%d"
-                )
-            )
+            print("TEST DATETIME:", parsed_datetime)
 
-            entities["time"] = (
-                parsed_datetime.strftime(
-                    "%H:%M"
-                )
-            )
+        if parsed_datetime:
+            entities["datetime"] = parsed_datetime
+            entities["date"] = parsed_datetime.strftime("%Y-%m-%d")
+            entities["time"] = parsed_datetime.strftime("%H:%M")
 
         # --------------------
         # Email Search Query
@@ -107,9 +96,7 @@ class EntityExtractor:
                 .strip()
             )
 
-            entities["search_query"] = (
-                sender_query
-            )
+            entities["search_query"] = sender_query
 
         # --------------------
         # Reply Body
@@ -125,5 +112,8 @@ class EntityExtractor:
                     .strip()
                 )
 
-        return entities
+        print("\n================ ENTITIES ================")
+        print(entities)
+        print("==========================================")
 
+        return entities

@@ -20,6 +20,9 @@ import ResponseCard, {
   ReplySentCard,
 } from '../components/ResponseCard'
 import { sendToCLARA } from '../services/api'
+import { sendVoiceMessage } from "../services/voice";
+
+import { buildAssistantMessage } from "../utils/messageBuilder";
 // Demo responses
 
 
@@ -110,114 +113,64 @@ export default function Home() {
     setLoading(true)
 
     // Simulate backend delay
-    let responseText = ""
-    let card = null
+   let assistantMsg;
 
     try {
 
-      const result = await sendToCLARA(trimmed)
-      console.log("CLARA RESPONSE:", result)
-      responseText =
-        result.response ||
-        "Task completed successfully"
+        const result = await sendToCLARA(trimmed);
 
-      // NEW CODE
-      if (
-        result.execution &&
-        result.execution.length > 0
-      ) {
+        console.log(result);
 
-        const execution =
-          result.execution[0]
-
-        if (
-          result.execution &&
-          result.execution.length > 0
-        ) {
-          const execution = result.execution[0]
-
-          // Email list
-          if (execution.emails) {
-            responseText = `Found ${execution.count} emails`
-
-            card = {
-              type: "emails",
-              emails: execution.emails
-            }
-          }
-
-          // Email sent
-          else if (
-          execution.message &&
-          execution.message.toLowerCase().includes('reply')
-        ) {
-          card = {
-            type: 'reply_sent',
-            recipient: execution.recipient,
-            subject: execution.subject,
-          }
-
-          responseText = 'Reply sent successfully'
-        }
-        else if (execution.email_id) {
-          card = {
-            type: 'email_sent',
-            recipient:
-              result.memory?.current_context?.entities?.recipient,
-            subject:
-              result.memory?.current_context?.entities?.subject,
-          }
-
-          responseText = 'Email sent successfully'
-        }
-
-          // Calendar create/update/delete
-          else if (
-            execution.event_id ||
-            execution.new_time
-          ) {
-            card = {
-              type: "calendar_event",
-              message: execution.message,
-              time: execution.new_time
-            }
-
-            responseText =
-              execution.message || "Calendar updated"
-          }
-
-          // Calendar list
-          else if (execution.events) {
-            card = {
-              type: "events",
-              events: execution.events
-            }
-
-            responseText =
-              `Found ${execution.count} events`
-          }
-        }
-      }
+        assistantMsg = buildAssistantMessage(result);
 
     } catch (error) {
 
-      console.error(error)
+        console.error(error);
 
-      responseText =
-        "Backend connection failed."
-    }
-
-    const assistantMsg = {
-      id: msgIdCounter++,
-      role: 'assistant',
-      content: responseText,
-      card,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        assistantMsg = {
+            id: msgIdCounter++,
+            role: "assistant",
+            content: "Backend connection failed.",
+            time: new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+            }),
+        };
     }
 
     setMessages((prev) => [...prev, assistantMsg])
     setLoading(false)
   }, [input, loading])
+
+  const handleVoice = async (audioBlob) => {
+    setLoading(true);
+
+    try {
+      const result = await sendVoiceMessage(audioBlob);
+
+      console.log("VOICE RESPONSE:", result);
+
+      // User message
+      const userMsg = {
+        id: msgIdCounter++,
+        role: "user",
+        content: result.transcript,
+        time: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+
+      // Process assistant response
+      const assistantMsg = buildAssistantMessage(result.response);
+
+      setMessages((prev) => [...prev, userMsg, assistantMsg]);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleCommandClick = (cmd) => {
     setInput(cmd)
@@ -283,6 +236,7 @@ export default function Home() {
                 value={input}
                 onChange={setInput}
                 onSend={() => sendMessage()}
+                onVoiceRecorded={handleVoice}
                 disabled={loading}
               />
             </div>

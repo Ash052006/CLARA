@@ -1,6 +1,10 @@
 class Planner:
+    
 
     def create_plan(self, context):
+        print("\n========== PLANNER CONTEXT ==========")
+        print(context)
+        print("=====================================")
 
         intent = context.get(
             "intent",
@@ -54,12 +58,63 @@ class Planner:
             ]
         elif intent == "email":
 
-            plan = [
-                {
-                    "tool": "EmailTool",
-                    "action": "send_email"
-                }
-            ]
+            message = context.get(
+                "message",
+                ""
+            ).lower()
+
+            if any(word in message for word in [
+                "read",
+                "show",
+                "latest",
+                "new",
+                "check",
+                "inbox"
+            ]):
+
+                plan = [
+                    {
+                        "tool": "EmailTool",
+                        "action": "read_emails"
+                    }
+                ]
+
+            elif "search" in message:
+
+                plan = [
+                    {
+                        "tool": "EmailTool",
+                        "action": "search_emails"
+                    }
+                ]
+
+            elif "reply" in message:
+
+                plan = [
+                    {
+                        "tool": "EmailTool",
+                        "action": "reply_latest_email"
+                    }
+                ]
+
+            elif "send" in message:
+
+                plan = [
+                    {
+                        "tool": "EmailTool",
+                        "action": "send_email"
+                    }
+                ]
+
+            else:
+
+                # Safe default
+                plan = [
+                    {
+                        "tool": "EmailTool",
+                        "action": "read_emails"
+                    }
+                ]
         elif intent == "email_query":
 
             plan = [
@@ -84,4 +139,10 @@ class Planner:
                     "action": "reply_latest_email"
                 }
             ]
+        print("=" * 50)
+        print("Planner Decision")
+        print("Intent :", intent)
+        print("Message:", context.get("message"))
+        print("Plan   :", plan)
+        print("=" * 50)
         return plan
