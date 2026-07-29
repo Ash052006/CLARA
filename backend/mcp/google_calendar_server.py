@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import os.path
 
 from google.auth.transport.requests import Request
@@ -83,6 +83,11 @@ class GoogleCalendarServer(MCPServer):
     action,
     context
 ):
+        print("=" * 60)
+        print("GOOGLE CALENDAR SERVER EXECUTE")
+        print("ACTION :", action)
+        print("CONTEXT:", context)
+        print("=" * 60)
 
         service = (
             self.get_service()
@@ -149,20 +154,11 @@ class GoogleCalendarServer(MCPServer):
             )
 
             return {
-
-                "status":
-                "success",
-
-                "message":
-                "Google Calendar event created",
-
-                "event_id":
-                created_event["id"],
-
-                "event_link":
-                created_event.get(
-                    "htmlLink"
-                )
+                "status": "success",
+                "message": "Google Calendar event created",
+                "event_id": created_event["id"],
+                "event_link": created_event.get("htmlLink"),
+                "start": created_event["start"]["dateTime"]
             }
 
         # -------------------------
@@ -231,7 +227,6 @@ class GoogleCalendarServer(MCPServer):
 
         elif action == "list_events":
 
-            from datetime import timezone
 
             start = (
                 datetime.now(timezone.utc)
@@ -325,7 +320,6 @@ class GoogleCalendarServer(MCPServer):
 
         elif action == "delete_event":
 
-            from datetime import timezone
 
             start = (
                 datetime.now(timezone.utc)
@@ -396,78 +390,83 @@ class GoogleCalendarServer(MCPServer):
         # -------------------------
 
         elif action == "update_event":
+            last_event = context.get("last_calendar_event")
+            print("=" * 60)
+            print("LAST EVENT RECEIVED")
+            print(last_event)
+            print("=" * 60)
 
-            from datetime import timezone
+            if not last_event:
+                return {
+                    "status": "error",
+                    "message": "No remembered meeting found."
+                }
 
-            start = (
-                datetime.now(timezone.utc)
-                .replace(
-                    hour=0,
-                    minute=0,
-                    second=0,
-                    microsecond=0
-                )
-                + timedelta(days=1)
-            )
-
-            end = start + timedelta(days=1)
-
-            events_result = (
+            event = (
                 service.events()
-                .list(
+                .get(
                     calendarId="primary",
-                    timeMin=start.isoformat(),
-                    timeMax=end.isoformat(),
-                    singleEvents=True,
-                    orderBy="startTime"
+                    eventId=last_event["event_id"]
                 )
                 .execute()
             )
 
-            events = (
-                events_result.get(
-                    "items",
-                    []
-                )
-            )
+    
 
-            if not events:
 
-                return {
-
-                    "status":
-                    "error",
-
-                    "message":
-                    "No events found"
-                }
-
-            event = events[0]
-
+            
            
 
-            new_start = entities.get(
-                "datetime"
+            old_start = datetime.fromisoformat(
+                event["start"]["dateTime"]
             )
 
-            print("UPDATE TIME:", new_start)
+            print("ENTITIES:", entities)
 
-            if not new_start:
+            # -------------------------------------------------
+            # If extractor returned only a time (update command)
+            # -------------------------------------------------
+
+            if entities.get("time"):
+
+                hour, minute = map(
+                    int,
+                    entities["time"].split(":")
+                )
+
+                new_start = old_start.replace(
+                    hour=hour,
+                    minute=minute,
+                    second=0,
+                    microsecond=0
+                )
+
+            # -------------------------------------------------
+            # Otherwise use extracted datetime (create-style)
+            # -------------------------------------------------
+
+            elif entities.get("datetime"):
+
+                extracted = entities["datetime"]
+
+                new_start = old_start.replace(
+                    hour=extracted.hour,
+                    minute=extracted.minute,
+                    second=0,
+                    microsecond=0
+                )
+
+            else:
 
                 return {
                     "status": "error",
                     "message": "Could not determine new meeting time"
                 }
 
-            new_end = (
-                new_start
-                + timedelta(hours=1)
-            )
+            new_end = new_start + timedelta(hours=1)
 
-            new_end = (
-                new_start
-                + timedelta(hours=1)
-            )
+            print("OLD:", old_start)
+            print("NEW:", new_start)
 
             event["start"] = {
 
@@ -486,6 +485,11 @@ class GoogleCalendarServer(MCPServer):
                 "timeZone":
                 "Asia/Kolkata"
             }
+            print("=" * 60)
+            print("UPDATING EVENT")
+            print("Old Start :", event["start"]["dateTime"])
+            print("New Start :", new_start.isoformat())
+            print("=" * 60)
 
             updated_event = (
                 service.events()

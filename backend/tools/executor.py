@@ -14,20 +14,27 @@ class ToolExecutor:
         for step in plan:
 
             tool = step["tool"]
-
             action = step["action"]
 
-            server = self.registry.get_server(
-                tool
-            )
+            print("=" * 60)
+            print("EXECUTOR")
+            print("Tool   :", tool)
+            print("Action :", action)
+
+            server = self.registry.get_server(tool)
+            print("Server :", server)
 
             if server:
+                try:
+                    result = server.execute(action, context)
+                    print("Result :", result)
+                    results.append(result)
+                except Exception as e:
+                    print("EXECUTION ERROR:", repr(e))
+                    raise
+            else:
+                print("SERVER NOT FOUND")
 
-                result = server.execute(
-                    action,
-                    context
-                )
-
-                results.append(result)
+            print("=" * 60)
 
         return results

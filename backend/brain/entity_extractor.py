@@ -1,7 +1,7 @@
 import re
 import dateparser
 import dateparser.search
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 class EntityExtractor:
@@ -57,38 +57,144 @@ class EntityExtractor:
 
             entities["body"] = body
 
-        # =====================================================
-        # TEST DATETIME EXTRACTION
-        # =====================================================
-
-        from datetime import timedelta
+        # ============================================================
+        # DATE / TIME EXTRACTION
+        # ============================================================
 
         parsed_datetime = None
 
-        if "tomorrow" in cleaned_message.lower() and "4" in cleaned_message:
+        is_update = any(
+            word in cleaned_message.lower()
+            for word in [
+                "update",
+                "change",
+                "cleanse",
+                "move",
+                "reschedule",
+                "shift",
+                "postpone"
+            ]
+        )
+
+        is_meeting_request = any(
+            word in cleaned_message.lower()
+            for word in [
+                "meeting",
+                "schedule",
+                "calendar",
+                "appointment",
+                "event"
+            ]
+        )
+
+        # ------------------------------------------------------------
+        # Tomorrow at <time>
+        # ------------------------------------------------------------
+
+        match = re.search(
+            r"tomorrow.*?(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?|am|pm)?",
+            cleaned_message.lower()
+        )
+
+        if match:
+
+            hour = int(match.group(1))
+            minute = int(match.group(2) or 0)
+            meridian = (match.group(3) or "").lower().replace(".", "")
+
+            if meridian == "pm" and hour != 12:
+                hour += 12
+
+            if meridian == "am" and hour == 12:
+                hour = 0
+
             now = datetime.now()
 
             parsed_datetime = datetime(
-                year=now.year,
-                month=now.month,
-                day=now.day,
-                hour=16,
-                minute=0,
-                second=0,
+                now.year,
+                now.month,
+                now.day,
+                hour,
+                minute
             ) + timedelta(days=1)
 
-            print("TEST DATETIME:", parsed_datetime)
+        elif is_meeting_request or is_update:
+
+            # --------------------------------------------------------
+            # Standalone time
+            # --------------------------------------------------------
+
+            matches = re.findall(
+                r"(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?|am|pm|o'?clock)?",
+                cleaned_message.lower()
+            )
+
+            if matches:
+
+                # Updates → use LAST mentioned time
+                if is_update:
+                    hour_str, minute_str, meridian = matches[-1]
+                else:
+                    hour_str, minute_str, meridian = matches[0]
+
+                hour = int(hour_str)
+                minute = int(minute_str or 0)
+
+                meridian = (meridian or "").lower().replace(".", "")
+
+                if meridian == "pm" and hour != 12:
+                    hour += 12
+
+                if meridian == "am" and hour == 12:
+                    hour = 0
+
+                # ----------------------------
+                # UPDATE REQUEST
+                # ----------------------------
+
+                if is_update:
+
+                    entities["time"] = f"{hour:02d}:{minute:02d}"
+
+                # ----------------------------
+                # CREATE REQUEST
+                # ----------------------------
+
+                else:
+
+                    now = datetime.now()
+
+                    parsed_datetime = now.replace(
+                        hour=hour,
+                        minute=minute,
+                        second=0,
+                        microsecond=0
+                    )
 
         if parsed_datetime:
+
             entities["datetime"] = parsed_datetime
             entities["date"] = parsed_datetime.strftime("%Y-%m-%d")
             entities["time"] = parsed_datetime.strftime("%H:%M")
+
+        print("PARSED:", parsed_datetime)
 
         # --------------------
         # Email Search Query
         # --------------------
 
-        if "from" in message.lower():
+        if (
+            "from" in message.lower()
+            and any(
+                word in message.lower()
+                for word in [
+                    "email",
+                    "mail",
+                    "gmail",
+                    "inbox"
+                ]
+            )
+        ):
 
             sender_query = (
                 message.lower()

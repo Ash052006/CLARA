@@ -234,11 +234,53 @@ class ConversationManager:
             tools = self.router.route(
                 plan
             )
+            # =========================================
+            # Inject last calendar event into context
+            # =========================================
 
+            if (
+                plan
+                and plan[0]["action"] in [
+                    "update_event",
+                    "delete_event"
+                ]
+            ):
+
+                last_event = self.memory.get(
+                    "last_calendar_event"
+                )
+
+                if last_event:
+
+                    merged_context[
+                        "last_calendar_event"
+                    ] = last_event
             execution_results = self.executor.execute(
                 plan,
                 merged_context
             )
+            # =========================================
+            # Save last created calendar event
+            # =========================================
+
+            if (
+                plan
+                and plan[0]["action"] == "create_meeting"
+                and execution_results
+                and execution_results[0]["status"] == "success"
+            ):
+
+                self.memory.save(
+                    "last_calendar_event",
+                    {
+                        "event_id": execution_results[0]["event_id"],
+                        "start": execution_results[0]["start"]
+                    }
+                )
+                print("=" * 60)
+                print("LAST EVENT SAVED")
+                print(self.memory.get("last_calendar_event"))
+                print("=" * 60)
 
             return {
 
