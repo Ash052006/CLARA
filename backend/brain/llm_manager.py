@@ -1,16 +1,37 @@
-from transformers import pipeline
+import logging
 
+from config.settings import settings
 from brain.greetings import greeting_response
+
+logger = logging.getLogger(__name__)
 
 
 class LLMManager:
 
     def __init__(self):
 
-        self.classifier = pipeline(
-            "zero-shot-classification",
-            model="valhalla/distilbart-mnli-12-3"
-        )
+        self._classifier = None
+
+    @property
+    def classifier(self):
+
+        if not settings.intent_classifier_enabled:
+            return None
+
+        if self._classifier is None:
+
+            from transformers import pipeline
+
+            logger.info("loading intent classifier model=%s", settings.intent_model)
+
+            self._classifier = pipeline(
+                "zero-shot-classification",
+                model=settings.intent_model
+            )
+
+            logger.info("intent classifier loaded")
+
+        return self._classifier
 
     def understand(self, message):
 
@@ -141,23 +162,45 @@ class LLMManager:
         # Zero-Shot Classification
         # -------------------------
 
-        result = self.classifier(
-            message,
-            [
-                "meeting",
-                "holiday",
-                "calendar_query",
-                "calendar_delete",
-                "calendar_update",
-                "email",
-                "email_query",
-                "email_search",
-                "email_reply",
-                "reminder",
-                "search",
-                "note"
-            ]
-        )
+        classifier = self.classifier
+
+        if classifier is None:
+
+            return {
+                "user_message": message,
+                "intent": "chat",
+                "confidence": 0.0
+            }
+
+        try:
+
+            result = classifier(
+                message,
+                [
+                    "meeting",
+                    "holiday",
+                    "calendar_query",
+                    "calendar_delete",
+                    "calendar_update",
+                    "email",
+                    "email_query",
+                    "email_search",
+                    "email_reply",
+                    "reminder",
+                    "search",
+                    "note"
+                ]
+            )
+
+        except Exception:
+
+            logger.exception("intent classification failed; falling back to chat")
+
+            return {
+                "user_message": message,
+                "intent": "chat",
+                "confidence": 0.0
+            }
 
         return {
 

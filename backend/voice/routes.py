@@ -1,17 +1,47 @@
+import logging
 import os
 import shutil
 import tempfile
+import threading
 import traceback
 
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 
-from brain.conversation_manager import ConversationManager
-from voice.speech_service import SpeechService
+from auth.dependencies import require_auth
+from config.settings import settings
+from runtime import get_conversation_manager
 
-router = APIRouter(prefix="/voice", tags=["Voice"])
+router = APIRouter(
+    prefix="/voice",
+    tags=["Voice"],
+    dependencies=[Depends(require_auth)],
+)
 
-speech = SpeechService()
-clara = ConversationManager()
+logger = logging.getLogger(__name__)
+
+_speech = None
+_speech_lock = threading.Lock()
+
+
+def get_speech():
+    """Load the Whisper model on first use, not at import time."""
+
+    global _speech
+
+    if not settings.voice_enabled:
+        raise HTTPException(
+            status_code=503,
+            detail="Voice transcription is disabled on this deployment.",
+        )
+
+    if _speech is None:
+        with _speech_lock:
+            if _speech is None:
+                from voice.speech_service import SpeechService
+
+                _speech = SpeechService()
+
+    return _speech
 
 
 @router.post("/chat")
@@ -33,13 +63,11 @@ async def voice_chat(audio: UploadFile = File(...)):
 
     try:
 
-        transcript = speech.transcribe(temp_path)
-        print("\n" + "=" * 80)
-        print("VOICE TRANSCRIPT")
-        print(repr(transcript))
-        print("=" * 80)
+        transcript = get_speech().transcribe(temp_path)
 
-        clara_response = clara.process_message(transcript)
+        logger.info("voice transcript received")
+
+        clara_response = get_conversation_manager().process_message(transcript)
 
         return {
             "success": True,
@@ -47,20 +75,19 @@ async def voice_chat(audio: UploadFile = File(...)):
             "response": clara_response
         }
 
-    
+    except HTTPException:
+        raise
 
     except Exception as e:
         traceback.print_exc()
 
-        print("=" * 80)
-        print("VOICE CHAT ERROR")
-        print("Type :", type(e).__name__)
-        print("Error:", repr(e))
-        print("=" * 80)
+        logger.exception("voice chat failed")
+
+        detail = "Internal server error" if settings.is_production else str(e)
 
         raise HTTPException(
             status_code=500,
-            detail=str(e)
+            detail=detail
         )
 
     finally:

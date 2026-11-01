@@ -130,7 +130,9 @@ export default function Home() {
         assistantMsg = {
             id: msgIdCounter++,
             role: "assistant",
-            content: "Backend connection failed.",
+            content:
+                error?.message ||
+                "CLARA backend is unavailable. It may be waking up — please try again in a few seconds.",
             time: new Date().toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",

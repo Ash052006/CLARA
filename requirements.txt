@@ -1,25 +1,3 @@
-# --- Web framework ---
-fastapi
-uvicorn[standard]
-pydantic
-python-multipart
-
-# --- Config / environment ---
-python-dotenv
-
-# --- LLM / NLP ---
-groq
-transformers
-torch
-
-# --- Speech-to-text (voice module) ---
-faster-whisper
-
-# --- Date/time parsing (planner/reminders) ---
-dateparser
-
-# --- Google Calendar / Gmail MCP servers ---
-google-api-python-client
-google-auth
-google-auth-oauthlib
-google-auth-httplib2
+# Single source of truth for backend dependencies.
+# Run from the repository root: pip install -r requirements.txt
+-r backend/requirements.txt

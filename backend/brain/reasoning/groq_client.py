@@ -1,25 +1,39 @@
-import os
+import logging
 
-from dotenv import load_dotenv
 from groq import Groq
 
-load_dotenv()
+from config.settings import settings
+
+logger = logging.getLogger(__name__)
 
 
 class GroqClient:
 
     def __init__(self):
 
-        api_key = os.getenv("GROQ_API_KEY")
+        self.model = settings.groq_model
 
-        if not api_key:
-            raise Exception("GROQ_API_KEY not found in .env")
+        self._client = None
 
-        self.client = Groq(
-            api_key=api_key
-        )
+    @property
+    def client(self):
 
-        self.model = "openai/gpt-oss-120b"
+        if self._client is None:
+
+            api_key = settings.groq_api_key
+
+            if not api_key:
+                raise RuntimeError(
+                    "GROQ_API_KEY is not configured on the backend."
+                )
+
+            self._client = Groq(
+                api_key=api_key,
+                timeout=settings.groq_timeout,
+                max_retries=settings.groq_max_retries,
+            )
+
+        return self._client
 
     def generate(self, prompt):
 

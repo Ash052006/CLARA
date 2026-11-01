@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, Menu, X, Zap } from 'lucide-react'
+import { Sparkles, Menu, X, Zap, LogOut } from 'lucide-react'
+import { isAuthEnabled, logout } from '../services/auth'
 
 const navLinks = [
   { label: 'Home', path: '/' },
@@ -92,6 +93,19 @@ export default function Navbar() {
                   Try CLARA
                 </Link>
               </motion.div>
+
+              {isAuthEnabled() && (
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={logout}
+                  title="Lock CLARA"
+                  aria-label="Log out"
+                  className="ml-2 p-2 rounded-lg text-slate-400 hover:text-white transition-colors"
+                >
+                  <LogOut size={16} />
+                </motion.button>
+              )}
             </div>
 
             {/* Mobile toggle */}
@@ -129,6 +143,16 @@ export default function Navbar() {
                   {link.label}
                 </Link>
               ))}
+
+              {isAuthEnabled() && (
+                <button
+                  onClick={logout}
+                  className="flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-200"
+                >
+                  <LogOut size={15} />
+                  Lock CLARA
+                </button>
+              )}
             </div>
           </motion.div>
         )}

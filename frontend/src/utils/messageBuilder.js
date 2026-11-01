@@ -9,8 +9,20 @@ export function buildAssistantMessage(result) {
   if (result.execution && result.execution.length > 0) {
     const execution = result.execution[0];
 
+    // Demo-mode / safety block
+    if (execution.status === "blocked") {
+      responseText =
+        execution.message || "This action is disabled in demo mode.";
+    }
+
+    // Tool error
+    else if (execution.status === "error") {
+      responseText =
+        execution.message || "The tool could not complete this request.";
+    }
+
     // Inbox Search
-    if (execution.emails) {
+    else if (execution.emails) {
       responseText = `Found ${execution.count} emails`;
 
       card = {

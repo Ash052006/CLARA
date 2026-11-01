@@ -1,4 +1,7 @@
-const BASE_URL = "http://127.0.0.1:8001";
+import { API_BASE_URL } from "./config";
+import { authorizedFetch } from "./auth";
+
+export { API_BASE_URL };
 
 export interface VoiceResponse {
     success: boolean;
@@ -19,16 +22,26 @@ export async function sendVoiceMessage(
         filename
     );
 
-    const response = await fetch(
-        `${BASE_URL}/voice/chat`,
+    const response = await authorizedFetch(
+        "/voice/chat",
         {
             method: "POST",
             body: formData,
-        }
+        },
+        180000
     );
 
     if (!response.ok) {
-        throw new Error("Voice request failed");
+        let detail = "";
+
+        try {
+            const body = await response.json();
+            detail = body.detail || "";
+        } catch {
+            detail = "";
+        }
+
+        throw new Error(detail || `Voice request failed (${response.status})`);
     }
 
     return response.json();

@@ -3,8 +3,12 @@ Speech Service
 Handles Speech-to-Text using Faster-Whisper
 """
 
+import logging
 from pathlib import Path
-from faster_whisper import WhisperModel
+
+from config.settings import settings
+
+logger = logging.getLogger(__name__)
 
 
 class SpeechService:
@@ -14,11 +18,22 @@ class SpeechService:
 
     def __init__(
         self,
-        model_name: str = "base",
-        device: str = "cpu",
-        compute_type: str = "int8",
+        model_name: str = None,
+        device: str = None,
+        compute_type: str = None,
     ):
-        print("Loading Faster Whisper model...")
+        from faster_whisper import WhisperModel
+
+        model_name = model_name or settings.whisper_model
+        device = device or settings.whisper_device
+        compute_type = compute_type or settings.whisper_compute_type
+
+        logger.info(
+            "loading whisper model model=%s device=%s compute_type=%s",
+            model_name,
+            device,
+            compute_type,
+        )
 
         self.model = WhisperModel(
             model_name,
@@ -26,7 +41,7 @@ class SpeechService:
             compute_type=compute_type,
         )
 
-        print("Speech model loaded.")
+        logger.info("speech model loaded")
 
     def transcribe(self, audio_path: str) -> str:
         """

@@ -1,12 +1,10 @@
 from datetime import datetime, timedelta, timezone
-import os.path
 
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
+from config.settings import settings
 from mcp.base_server import MCPServer
+from mcp.google_auth import get_credentials
 
 
 SCOPES = [
@@ -18,59 +16,13 @@ class GoogleCalendarServer(MCPServer):
 
     def get_service(self):
 
-        creds = None
-
-        if os.path.exists(
-            "token.json"
-        ):
-
-            creds = (
-                Credentials
-                .from_authorized_user_file(
-                    "token.json",
-                    SCOPES
-                )
-            )
-
-        if (
-            not creds
-            or not creds.valid
-        ):
-
-            if (
-                creds
-                and creds.expired
-                and creds.refresh_token
-            ):
-
-                creds.refresh(
-                    Request()
-                )
-
-            else:
-
-                flow = (
-                    InstalledAppFlow
-                    .from_client_secrets_file(
-                        "credentials.json",
-                        SCOPES
-                    )
-                )
-
-                creds = (
-                    flow.run_local_server(
-                        port=0
-                    )
-                )
-
-            with open(
-                "token.json",
-                "w"
-            ) as token:
-
-                token.write(
-                    creds.to_json()
-                )
+        creds = get_credentials(
+            SCOPES,
+            token_path=settings.google_calendar_token_file,
+            token_json=settings.google_calendar_token_json,
+            credentials_path=settings.google_credentials_file,
+            credentials_json=settings.google_credentials_json,
+        )
 
         return build(
             "calendar",
@@ -411,11 +363,6 @@ class GoogleCalendarServer(MCPServer):
                 .execute()
             )
 
-    
-
-
-            
-           
 
             old_start = datetime.fromisoformat(
                 event["start"]["dateTime"]
