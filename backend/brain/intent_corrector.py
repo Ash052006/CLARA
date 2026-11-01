@@ -68,6 +68,19 @@ class IntentCorrector:
         )
 
         # ----------------------------------------------------
+        # Preserve explicitly detected email intents before
+        # generic words such as "show" or "list" are corrected.
+        # ----------------------------------------------------
+
+        if analysis.get("intent") in (
+            "email",
+            "email_query",
+            "email_search",
+            "email_reply"
+        ):
+            return analysis
+
+        # ----------------------------------------------------
         # If the model already predicted a specific calendar
         # intent, don't override it.
         # ----------------------------------------------------

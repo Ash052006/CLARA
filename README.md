@@ -164,7 +164,7 @@ pip install -r requirements.txt
 OPENAI_API_KEY=your_openai_key
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
-GOOGLE_REDIRECT_URI=http://localhost:8000/auth/callback
+GOOGLE_REDIRECT_URI=http://localhost:8001/auth/callback
 ```
 
 2. **Configure MCP servers** in `config/mcp_config.py`
@@ -177,7 +177,7 @@ GOOGLE_REDIRECT_URI=http://localhost:8000/auth/callback
 python main.py
 ```
 
-Agent will be available at: `http://localhost:8000`
+Agent will be available at: `http://localhost:8001`
 
 ---
 

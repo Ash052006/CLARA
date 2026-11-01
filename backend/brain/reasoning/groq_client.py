@@ -19,7 +19,7 @@ class GroqClient:
             api_key=api_key
         )
 
-        self.model = "llama-3.3-70b-versatile"
+        self.model = "openai/gpt-oss-120b"
 
     def generate(self, prompt):
 
