@@ -1,4 +1,4 @@
-import os
+from transformers import pipeline
 
 from brain.greetings import greeting_response
 
@@ -7,34 +7,10 @@ class LLMManager:
 
     def __init__(self):
 
-        self.classifier = None
-        self._classifier_loaded = False
-
-    def _load_classifier(self):
-
-        if self._classifier_loaded:
-            return self.classifier
-
-        self._classifier_loaded = True
-
-        if os.getenv("CLARA_USE_TRANSFORMERS", "").lower() not in (
-            "1",
-            "true",
-            "yes",
-        ):
-            return None
-
-        try:
-            from transformers import pipeline
-
-            self.classifier = pipeline(
-                "zero-shot-classification",
-                model="valhalla/distilbart-mnli-12-3"
-            )
-        except Exception as exc:
-            print("Transformers classifier unavailable:", repr(exc))
-
-        return self.classifier
+        self.classifier = pipeline(
+            "zero-shot-classification",
+            model="valhalla/distilbart-mnli-12-3"
+        )
 
     def understand(self, message):
 
@@ -165,16 +141,7 @@ class LLMManager:
         # Zero-Shot Classification
         # -------------------------
 
-        classifier = self._load_classifier()
-
-        if classifier is None:
-            return {
-                "user_message": message,
-                "intent": "chat",
-                "confidence": 0.5
-            }
-
-        result = classifier(
+        result = self.classifier(
             message,
             [
                 "meeting",

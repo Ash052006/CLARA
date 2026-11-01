@@ -8,10 +8,6 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 from mcp.base_server import MCPServer
-from mcp.google_credentials import (
-    ensure_interactive_oauth_allowed,
-    materialize,
-)
 
 
 SCOPES = [
@@ -23,9 +19,6 @@ SCOPES = [
 class GmailServer(MCPServer):
 
     def get_service(self):
-
-        materialize("gmail_token.json", "GOOGLE_GMAIL_TOKEN_JSON")
-        materialize("credentials.json", "GOOGLE_CREDENTIALS_JSON")
 
         creds = None
 
@@ -57,8 +50,6 @@ class GmailServer(MCPServer):
                 )
 
             else:
-
-                ensure_interactive_oauth_allowed()
 
                 flow = (
                     InstalledAppFlow

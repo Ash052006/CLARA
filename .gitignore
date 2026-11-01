@@ -5,11 +5,3 @@ __pycache__/
 .env
 .DS_Store
 node_modules/
-frontend/dist/
-backend/node_modules/
-backend/database/
-backend/storage/
-backend/credentials.json
-backend/token.json
-backend/gmail_token.json
-backend/*.db
